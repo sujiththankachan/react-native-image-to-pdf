@@ -10,8 +10,8 @@
   "keywords": [
     "react-native"
   ],
-  "author": "",
-  "license": "",
+  "author": "Jonas Laux, Philipp Mueller",
+  "license": "MiT",
   "peerDependencies": {
     "react-native": "^0.41.2"
   }
