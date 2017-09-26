@@ -5,6 +5,9 @@
 
 `$ npm install react-native-image-to-pdf --save`
 
+or
+
+`$ yarn add react-native-image-to-pdf`
 ### Mostly automatic installation
 
 `$ react-native link react-native-image-to-pdf`
