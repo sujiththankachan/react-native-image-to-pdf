@@ -46,7 +46,11 @@ import RNImageToPdf from 'react-native-image-to-pdf';
 
 ...
 const myAsyncPDFFunction = async () => {
+	try {
 	const pdf = await RNImageToPdf.createPDFbyImages({ imagePaths: ['/path/to/image1.png','/path/to/image2.png'], name: 'PDFName'});
+	} catch(e) {
+		console.log(e);
+	}
 }
 ```
   
