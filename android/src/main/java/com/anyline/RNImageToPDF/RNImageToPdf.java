@@ -8,6 +8,9 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.pdf.PdfDocument;
+import android.graphics.pdf.PdfDocument.Page;
+import android.graphics.pdf.PdfDocument.PageInfo;
+import android.graphics.pdf.PdfDocument.PageInfo.Builder;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
@@ -42,21 +45,20 @@ public class RNImageToPdf extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void createPDFbyImages(ReadableMap imageObject, final Promise promise) {
+        ReadableArray images = imageObject.getArray("imagePaths");
+
+        Bitmap bmp = getImageFromFile(images.getString(0));
 
         PdfDocument document = new PdfDocument();
+        PageInfo pageInfo = new Builder(bmp.getWidth(), bmp.getHeight(), 1).create();
 
-        PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(585, 842, 1).create(); // A4 in PS points
-
-        ReadableArray images = imageObject.getArray("imagePaths");
 
         for (int idx = 0; idx < images.size(); idx++) {
             // start a page
-            PdfDocument.Page page = document.startPage(pageInfo);
+            Page page = document.startPage(pageInfo);
 
             // get image from file
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inPreferredConfig = Bitmap.Config.ARGB_8888;
-            Bitmap bmp = BitmapFactory.decodeFile(images.getString(idx), options);
+            bmp = getImageFromFile(images.getString(idx));
 
             // add image to page
             Canvas canvas = page.getCanvas();
@@ -81,5 +83,10 @@ public class RNImageToPdf extends ReactContextBaseJavaModule {
         document.close();
     }
 
+    private static Bitmap getImageFromFile(String path) {
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        return BitmapFactory.decodeFile(path, options);
+    }
+
 }
-  
