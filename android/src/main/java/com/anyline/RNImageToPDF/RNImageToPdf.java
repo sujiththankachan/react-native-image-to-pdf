@@ -23,10 +23,14 @@ import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.logging.Logger;
+
+import static java.lang.String.format;
 
 
 public class RNImageToPdf extends ReactContextBaseJavaModule {
@@ -34,6 +38,7 @@ public class RNImageToPdf extends ReactContextBaseJavaModule {
     public static final String REACT_CLASS = "RNImageToPdf";
 
     private final ReactApplicationContext reactContext;
+    private static final Logger log = Logger.getLogger(RNImageToPdf.REACT_CLASS);
 
 
     RNImageToPdf(ReactApplicationContext context) {
@@ -58,12 +63,10 @@ public class RNImageToPdf extends ReactContextBaseJavaModule {
             for (int idx = 0; idx < images.size(); idx++) {
                 // get image from file
                 Bitmap bmp = getImageFromFile(images.getString(idx));
-
                 PageInfo pageInfo = new Builder(bmp.getWidth(), bmp.getHeight(), 1).create();
 
                 // start a page
                 Page page = document.startPage(pageInfo);
-
 
                 // add image to page
                 Canvas canvas = page.getCanvas();
@@ -76,6 +79,7 @@ public class RNImageToPdf extends ReactContextBaseJavaModule {
             File targetPath = reactContext.getExternalFilesDir(null);
             File filePath = new File(targetPath, documentName);
             document.writeTo(new FileOutputStream(filePath));
+            log.info(format("Wrote %,d bytes to %s", filePath.length(), filePath.getPath()));
             WritableMap resultMap = Arguments.createMap();
             resultMap.putString("filePath", filePath.getAbsolutePath());
             promise.resolve(resultMap);
@@ -89,16 +93,29 @@ public class RNImageToPdf extends ReactContextBaseJavaModule {
 
     private Bitmap getImageFromFile(String path) throws IOException {
         if (path.startsWith("content://")) {
-            ParcelFileDescriptor parcelFileDescriptor = reactContext.getContentResolver().openFileDescriptor(Uri.parse(path), "r");
-            FileDescriptor fileDescriptor = parcelFileDescriptor.getFileDescriptor();
-            Bitmap image = BitmapFactory.decodeFileDescriptor(fileDescriptor);
-            parcelFileDescriptor.close();
-            return image;
+            return compress(getImageFromContentResolver(path));
         }
 
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inPreferredConfig = Bitmap.Config.ARGB_8888;
-        return BitmapFactory.decodeFile(path, options);
+        Bitmap image = BitmapFactory.decodeFile(path, options);
+        return compress(image);
+    }
+
+    private Bitmap getImageFromContentResolver(String path) throws IOException {
+        ParcelFileDescriptor parcelFileDescriptor = reactContext.getContentResolver().openFileDescriptor(Uri.parse(path), "r");
+        FileDescriptor fileDescriptor = parcelFileDescriptor.getFileDescriptor();
+        Bitmap image = BitmapFactory.decodeFileDescriptor(fileDescriptor);
+        parcelFileDescriptor.close();
+        return image;
+    }
+
+    private Bitmap compress(Bitmap bmp) throws IOException {
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        bmp.compress(Bitmap.CompressFormat.JPEG,60,stream);
+        byte[] byteArray = stream.toByteArray();
+        stream.close();
+        return BitmapFactory.decodeByteArray(byteArray,0,byteArray.length);
     }
 
 }
