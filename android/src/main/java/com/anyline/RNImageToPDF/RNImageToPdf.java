@@ -40,7 +40,6 @@ public class RNImageToPdf extends ReactContextBaseJavaModule {
     private final ReactApplicationContext reactContext;
     private static final Logger log = Logger.getLogger(RNImageToPdf.REACT_CLASS);
 
-
     RNImageToPdf(ReactApplicationContext context) {
         super(context);
         this.reactContext = context;
@@ -93,13 +92,13 @@ public class RNImageToPdf extends ReactContextBaseJavaModule {
 
     private Bitmap getImageFromFile(String path) throws IOException {
         if (path.startsWith("content://")) {
-            return compress(getImageFromContentResolver(path));
+            return compress(resize(getImageFromContentResolver(path)));
         }
 
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inPreferredConfig = Bitmap.Config.ARGB_8888;
         Bitmap image = BitmapFactory.decodeFile(path, options);
-        return compress(image);
+        return compress(resize(image));
     }
 
     private Bitmap getImageFromContentResolver(String path) throws IOException {
@@ -110,9 +109,18 @@ public class RNImageToPdf extends ReactContextBaseJavaModule {
         return image;
     }
 
+    private Bitmap resize(Bitmap bitmap) {
+        if (bitmap.getWidth() < 1080) return bitmap;
+        double aspectRatio = (double)bitmap.getHeight()/bitmap.getWidth();
+        int width = 1080;
+        int height = (int)Math.round(width * aspectRatio);
+
+        return Bitmap.createScaledBitmap(bitmap, width, height, true);
+    }
+
     private Bitmap compress(Bitmap bmp) throws IOException {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        bmp.compress(Bitmap.CompressFormat.JPEG,60,stream);
+        bmp.compress(Bitmap.CompressFormat.JPEG,80,stream);
         byte[] byteArray = stream.toByteArray();
         stream.close();
         return BitmapFactory.decodeByteArray(byteArray,0,byteArray.length);
