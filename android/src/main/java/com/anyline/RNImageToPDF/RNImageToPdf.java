@@ -51,17 +51,30 @@ public class RNImageToPdf extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void createPDFbyImages(ReadableMap imageObject, final Promise promise) {
-        ReadableArray images = imageObject.getArray("imagePaths");
+    public void createPDFbyImages(ReadableMap options, final Promise promise) {
+        ReadableArray images = options.getArray("imagePaths");
 
-        String documentName = imageObject.getString("name");
+        String documentName = options.getString("name");
+
+        ReadableMap maxSize = options.hasKey("maxSize") ? options.getMap("maxSize") : null;
+        int maxHeight = maxSize != null && maxSize.hasKey("height") ? maxSize.getInt("height") : 0;
+        int maxWidth = maxSize != null && maxSize.hasKey("width") ? maxSize.getInt("width") : 0;
+
+        int quality = options.hasKey("quality") ? (int)Math.round(100 * options.getDouble("quality")) : 0;
 
         PdfDocument document = new PdfDocument();
         try {
 
             for (int idx = 0; idx < images.size(); idx++) {
-                // get image from file
+                // get image
                 Bitmap bmp = getImageFromFile(images.getString(idx));
+
+                // resize
+                bmp = resize(bmp, maxWidth, maxHeight);
+
+                // compress
+                bmp = compress(bmp, quality);
+
                 PageInfo pageInfo = new Builder(bmp.getWidth(), bmp.getHeight(), 1).create();
 
                 // start a page
@@ -92,13 +105,12 @@ public class RNImageToPdf extends ReactContextBaseJavaModule {
 
     private Bitmap getImageFromFile(String path) throws IOException {
         if (path.startsWith("content://")) {
-            return compress(resize(getImageFromContentResolver(path)));
+            return getImageFromContentResolver(path);
         }
 
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inPreferredConfig = Bitmap.Config.ARGB_8888;
-        Bitmap image = BitmapFactory.decodeFile(path, options);
-        return compress(resize(image));
+        return BitmapFactory.decodeFile(path, options);
     }
 
     private Bitmap getImageFromContentResolver(String path) throws IOException {
@@ -109,21 +121,25 @@ public class RNImageToPdf extends ReactContextBaseJavaModule {
         return image;
     }
 
-    private Bitmap resize(Bitmap bitmap) {
-        if (bitmap.getWidth() < 1080) return bitmap;
-        double aspectRatio = (double)bitmap.getHeight()/bitmap.getWidth();
-        int width = 1080;
-        int height = (int)Math.round(width * aspectRatio);
+    private Bitmap resize(Bitmap bitmap, int maxWidth, int maxHeight) {
+        if (maxWidth == 0 || maxHeight == 0) return bitmap;
+        if (bitmap.getWidth() <= maxWidth && bitmap.getHeight() <= maxHeight) return bitmap;
+
+        double aspectRatio = (double) bitmap.getHeight() / bitmap.getWidth();
+        int height = Math.round(maxWidth * aspectRatio) < maxHeight ? (int) Math.round(maxWidth * aspectRatio) : maxHeight;
+        int width = (int) Math.round(height / aspectRatio);
 
         return Bitmap.createScaledBitmap(bitmap, width, height, true);
     }
 
-    private Bitmap compress(Bitmap bmp) throws IOException {
+    private Bitmap compress(Bitmap bmp, int quality) throws IOException {
+        if (quality <= 0 || quality >= 100) return bmp;
+
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        bmp.compress(Bitmap.CompressFormat.JPEG,80,stream);
+        bmp.compress(Bitmap.CompressFormat.JPEG, quality, stream);
         byte[] byteArray = stream.toByteArray();
         stream.close();
-        return BitmapFactory.decodeByteArray(byteArray,0,byteArray.length);
+        return BitmapFactory.decodeByteArray(byteArray, 0, byteArray.length);
     }
 
 }
